@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-from typing import List, Tuple
+from typing import Iterable, Sequence, List, Tuple
 """Annotate the below function’s parameters and return
 values with the appropriate types"""
 
 
-def element_length(lst: List[str]) -> List[Tuple[str, int]]:
+def element_length(lst: Iterable[Sequence]) -> List[Tuple[Sequence, int]]:
     """
     Calculate the length of each element in the list.
 
     Args:
-    lst (List[str]): The input list of strings.
+    lst (Iterable[Sequence]): The input iterable containing
+    sequences (e.g., list, tuple).
 
     Returns:
-    List[Tuple[str, int]]: A list of tuples where the first element is
-    the original string
-    from the input list and the second element is the length of that string.
+    List[Tuple[Sequence, int]]: A list of tuples where the first
+    element is a sequence (e.g., list, tuple)
+    from the input iterable and the second element is the
+    length of that sequence.
     """
     return [(i, len(i)) for i in lst]
