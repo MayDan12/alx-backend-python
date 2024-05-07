@@ -27,4 +27,4 @@ async def wait_n(n: int, max_delay: int) -> List[float]:
         delay = await future
         delays.append(delay)
 
-    return delays
+    return (delays)
