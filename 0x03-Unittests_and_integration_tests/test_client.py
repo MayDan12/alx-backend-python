@@ -38,8 +38,10 @@ class TestGithubOrgClient(unittest.TestCase):
     @patch('client.get_json')
     def test_public_repos(self, mock_json):
         """
-        The Test that the list of repos is what you expect from the chosen payload.
-        The Test that the mocked property and the mocked get_json was called once.
+        The Test that the list of repos is what you expect from the
+        chosen payload.
+        The Test that the mocked property and the mocked
+        get_json was called once.
         """
         json_payload = [{"name": "Google"}, {"name": "Twitter"}]
         mock_json.return_value = json_payload
@@ -76,7 +78,8 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """The class method called before tests in an individual class are run"""
+        """The class method called before tests in an individual
+        class are run"""
         # def my_side_effect(url):
         #     """ Side Effect function for test """
         #     test_url = "https://api.github.com/orgs/google"
@@ -116,5 +119,6 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        """The class method called after tests in an individual class have run"""
+        """The class method called after tests in an individual
+        class have run"""
         cls.get_patcher.stop()
