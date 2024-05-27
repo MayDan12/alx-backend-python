@@ -1,59 +1,120 @@
 #!/usr/bin/env python3
-"""This is A github org client
-"""
-from typing import (
-    List,
-    Dict,
+"""This is the Module for testing client """
+
+from client import GithubOrgClient
+from fixtures import TEST_PAYLOAD
+from parameterized import parameterized, parameterized_class
+import json
+import unittest
+from unittest.mock import patch, PropertyMock, Mock
+
+
+class TestGithubOrgClient(unittest.TestCase):
+    """ Class for Testing Github Org Client """
+
+    @parameterized.expand([
+        ('google'),
+        ('abc')
+    ])
+    @patch('client.get_json')
+    def test_org(self, input, mock):
+        """Test that GithubOrgClient.org returns the correct value"""
+        test_class = GithubOrgClient(input)
+        test_class.org()
+        mock.assert_called_once_with(f'https://api.github.com/orgs/{input}')
+
+    def test_public_repos_url(self):
+        """ The Test that the result of _public_repos_url is the expected one
+        based on the mocked payload
+        """
+        with patch('client.GithubOrgClient.org',
+                   new_callable=PropertyMock) as mock:
+            payload = {"repos_url": "World"}
+            mock.return_value = payload
+            test_class = GithubOrgClient('test')
+            result = test_class._public_repos_url
+            self.assertEqual(result, payload["repos_url"])
+
+    @patch('client.get_json')
+    def test_public_repos(self, mock_json):
+        """
+        The Test that the list of repos is what you expect from the chosen payload.
+        The Test that the mocked property and the mocked get_json was called once.
+        """
+        json_payload = [{"name": "Google"}, {"name": "Twitter"}]
+        mock_json.return_value = json_payload
+
+        with patch('client.GithubOrgClient._public_repos_url',
+                   new_callable=PropertyMock) as mock_public:
+
+            mock_public.return_value = "hello/world"
+            test_class = GithubOrgClient('test')
+            result = test_class.public_repos()
+
+            check = [i["name"] for i in json_payload]
+            self.assertEqual(result, check)
+
+            mock_public.assert_called_once()
+            mock_json.assert_called_once()
+
+    @parameterized.expand([
+        ({"license": {"key": "my_license"}}, "my_license", True),
+        ({"license": {"key": "other_license"}}, "my_license", False)
+    ])
+    def test_has_license(self, repo, license_key, expected):
+        """The unit-test for GithubOrgClient.has_license """
+        result = GithubOrgClient.has_license(repo, license_key)
+        self.assertEqual(result, expected)
+
+
+@parameterized_class(
+    ("org_payload", "repos_payload", "expected_repos", "apache2_repos"),
+    TEST_PAYLOAD
 )
+class TestIntegrationGithubOrgClient(unittest.TestCase):
+    """The Class for Integration test of fixtures """
 
-from utils import (
-    get_json,
-    access_nested_map,
-    memoize,
-)
+    @classmethod
+    def setUpClass(cls):
+        """The class method called before tests in an individual class are run"""
+        # def my_side_effect(url):
+        #     """ Side Effect function for test """
+        #     test_url = "https://api.github.com/orgs/google"
+        #     if url == test_url:
+        #         return cls.org_payload
+        #     return cls.repos_payload
 
+        config = {'return_value.json.side_effect':
+                  [
+                      cls.org_payload, cls.repos_payload,
+                      cls.org_payload, cls.repos_payload
+                  ]
+                  }
+        cls.get_patcher = patch('requests.get', **config)
 
-class GithubOrgClient:
-    """This is A Githib org client
-    """
-    ORG_URL = "https://api.github.com/orgs/{org}"
+        cls.mock = cls.get_patcher.start()
 
-    def __init__(self, org_name: str) -> None:
-        """The Init method of GithubOrgClient"""
-        self._org_name = org_name
+    def test_public_repos(self):
+        """The Integration test: public repos"""
+        test_class = GithubOrgClient("google")
 
-    @memoize
-    def org(self) -> Dict:
-        """The Memoize org"""
-        return get_json(self.ORG_URL.format(org=self._org_name))
+        self.assertEqual(test_class.org, self.org_payload)
+        self.assertEqual(test_class.repos_payload, self.repos_payload)
+        self.assertEqual(test_class.public_repos(), self.expected_repos)
+        self.assertEqual(test_class.public_repos("XLICENSE"), [])
+        self.mock.assert_called()
 
-    @property
-    def _public_repos_url(self) -> str:
-        """The Public repos URL"""
-        return self.org["repos_url"]
+    def test_public_repos_with_license(self):
+        """The Integration test for public repos with License """
+        test_class = GithubOrgClient("google")
 
-    @memoize
-    def repos_payload(self) -> Dict:
-        """The Memoize repos payload"""
-        return get_json(self._public_repos_url)
+        self.assertEqual(test_class.public_repos(), self.expected_repos)
+        self.assertEqual(test_class.public_repos("XLICENSE"), [])
+        self.assertEqual(test_class.public_repos(
+            "apache-2.0"), self.apache2_repos)
+        self.mock.assert_called()
 
-    def public_repos(self, license: str = None) -> List[str]:
-        """The Public repos"""
-        json_payload = self.repos_payload
-        public_repos = [
-            repo["name"] for repo in json_payload
-            if license is None or self.has_license(repo, license)
-        ]
-
-        return public_repos
-
-    @staticmethod
-    def has_license(repo: Dict[str, Dict], license_key: str) -> bool:
-        """The Static: has_license"""
-        assert license_key is not None, "license_key cannot be None"
-        try:
-            has_license = access_nested_map(
-                repo, ("license", "key")) == license_key
-        except KeyError:
-            return False
-        return has_license
+    @classmethod
+    def tearDownClass(cls):
+        """The class method called after tests in an individual class have run"""
+        cls.get_patcher.stop()
